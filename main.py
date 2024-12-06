@@ -12,7 +12,7 @@ MORPHER_TRADE_ENGINE_ADDRESS='0xc4a877Ed48c2727278183E18fd558f4b0c26030A'
 MORPHER_STATE_ADDRESS='0xB4881186b9E52F8BD6EC5F19708450cE57b24370'
 ORDER_CREATED='c7392b9822094f2dca86d2a7a97945e80918a8aee61c04de90253f3683b56950'
 
-class TradingLibrary:
+class MorpherTrading:
 
     def __init__(self, private_key: str):
         self.private_key = private_key
