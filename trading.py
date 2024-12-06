@@ -2,6 +2,7 @@ from eth_account import Account
 import json
 import time
 from web3 import Web3
+from web3.exceptions import TransactionNotFound
 
 
 SIDECHAIN_RPC = 'https://sidechain.morpher.com'
@@ -9,7 +10,7 @@ MORPHER_TOKEN_ADDRESS='0xC44628734a9432a3DAA302E11AfbdFa8361424A5'
 MORPHER_ORACLE_ADDRESS='0xf8B5b1699A00EDfdB6F15524646Bd5071bA419Fb'
 MORPHER_TRADE_ENGINE_ADDRESS='0xc4a877Ed48c2727278183E18fd558f4b0c26030A'
 MORPHER_STATE_ADDRESS='0xB4881186b9E52F8BD6EC5F19708450cE57b24370'
-
+ORDER_CREATED='c7392b9822094f2dca86d2a7a97945e80918a8aee61c04de90253f3683b56950'
 
 class TradingLibrary:
 
@@ -54,6 +55,9 @@ class TradingLibrary:
             only_if_price_below (float): Open the position only if the price is below this value. 0 for no limit.
             good_until (int): Unix timestamp in seconds specifying the expiration time of the order. 0 for no expiration.
             good_from (int): Unix timestamp in seconds specifying the activation time of the order. 0 for no activation.
+
+        Returns:
+            str: ID of the order.
         """
         return self.openPositionExact(
             market_id,
@@ -91,7 +95,7 @@ class TradingLibrary:
             good_from (int): Unix timestamp in seconds specifying the activation time of the order. 0 for no activation.
 
         Returns:
-            str: Transaction hash of the order creation transaction.
+            str: ID of the order.
         """
         tx = self.morpher_oracle.functions.createOrder(
             market_id,
@@ -113,7 +117,7 @@ class TradingLibrary:
         signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
-        return self.web3.to_hex(tx_hash)
+        return self._getOrderId(self.web3.to_hex(tx_hash))
 
 
     def closePosition(
@@ -137,7 +141,7 @@ class TradingLibrary:
             good_from (int): Unix timestamp in seconds specifying the activation time of the order. 0 for no activation.
 
         Returns:
-            str: Transaction hash of the order creation transaction.
+            str: ID of the order.
         """
         position = self.getPosition(market_id)
         if position["longShares"] > 0 and position["shortShares"] > 0:
@@ -177,9 +181,8 @@ class TradingLibrary:
             good_from (int): Unix timestamp in seconds specifying the activation time of the order. 0 for no activation.
 
         Returns:
-            str: Transaction hash of the order creation transaction.
+            str: ID of the order.
         """
-
         position = self.getPosition(market_id)
         if position["longShares"] > 0 and position["shortShares"] > 0:
             raise Exception("Found mixed position (long and short), can't close!")
@@ -206,7 +209,7 @@ class TradingLibrary:
         signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
-        return self.web3.to_hex(tx_hash)
+        return self._getOrderId(self.web3.to_hex(tx_hash))
 
 
     def getBalance(self):
@@ -307,23 +310,46 @@ class TradingLibrary:
         ).call()
         return value * position["shortShares"]
 
-    def _getOrderId(self, market_id: str):
-        time.sleep(1)
+
+    def cancelOrder(self, order_id: str):
+        """
+        Cancels a pending order (e.g. limit order or take profit / stop loss).
+
+        Returns:
+            bool: True if order was cancelled, False if it's already executed.
+        """
+        order = self.morpher_trade_engine.functions.getOrder(order_id).call()
+        if order[0] == '0x0000000000000000000000000000000000000000':
+            return False
+        if order[0].lower() != self.address.lower():
+            raise Exception("Cannot cancel another user order!")
+
+        tx = self.morpher_oracle.functions.initiateCancelOrder(order_id).build_transaction({
+            "from": self.address,
+            "gas": 2000000,
+            "gasPrice": 100,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+
+        signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
+        self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+
+        return True
+
+
+    def _getOrderId(self, tx_hash: str):
         retries = 0
-        while retries < 10:
-            start = self.web3.eth.block_number - 10
-            logs = self.web3.eth.get_logs({
-                'fromBlock': start,
-                'toBlock': 'latest',
-                'address': MORPHER_ORACLE_ADDRESS,
-                'topics': ['0xc7392b9822094f2dca86d2a7a97945e80918a8aee61c04de90253f3683b56950'] # OrderCreated
-            })
-            found_log = None
-            for log in logs:
-                if log.topics[2] == f"0x000000000000000000000000{self.address[2:]}" and log.topics[3] == market_id:
-                    found_log = log
-            if found_log:
-                return found_log.topics[1]
-            time.sleep(1)
-            retries += 1
-        raise Exception("Order not found after 10 seconds!")
+        tx_receipt = None
+        while retries < 30:
+            try:
+                tx_receipt = self.web3.eth.get_transaction_receipt(tx_hash)
+                break
+            except TransactionNotFound:
+                retries += 1
+                time.sleep(1)
+        if tx_receipt is None:
+            raise Exception("Transaction not found on chain after 30 seconds!")
+        for log in tx_receipt["logs"]:
+            if log["address"].lower() == MORPHER_ORACLE_ADDRESS.lower() and log["topics"][0].hex() == ORDER_CREATED:
+                return '0x' + log["topics"][1].hex()
+        raise Exception("No order created log found!")
