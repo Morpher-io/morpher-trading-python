@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 from datetime import datetime
 import time
-from main import MorpherTrading  #TODO use local package
+from trading import MorpherTrading
 
 # simple scalping strategy: open when price is outside the band and close when it crosses the band on the other side
 # stop loss is 2x the threshold so risk/reward is 1:2
@@ -25,6 +25,7 @@ last_price = None
 last_print = time.time()
 
 current_position = None
+closing_position = False
 
 def calculate_moving_average(prices):
     return np.mean(prices)
@@ -73,6 +74,7 @@ def close_position(price, ma):
 
 def on_message(ws, message):
     global current_position 
+    global closing_position
     global last_print
     data = json.loads(message)
     price = float(data['p'])
@@ -87,6 +89,8 @@ def on_message(ws, message):
         last_print = time.time()
         if len(minute_prices) < MOVING_AVERAGE_PERIOD:
             print(f"[{datetime.now()}] Collecting minute prices... ({len(minute_prices)}/{MOVING_AVERAGE_PERIOD})")
+        elif closing_position:
+            print("Closing position...")
         elif current_position is not None:
             sl = current_position["stop_loss"]
             tp = current_position["take_profit"]
@@ -98,21 +102,29 @@ def on_message(ws, message):
     # wait until we have the correct number of minutely prices
     if len(minute_prices) < MOVING_AVERAGE_PERIOD:
         return
-    
+
+    # avoid closing the position multiple times
+    if closing_position:
+        return
+
     # triggers
     if current_position is not None:
         # check stop loss / take profit (you can execute istant closePositions as stop loss and take
         # profit or you can closePosition by specifying only_if_price_below and only_if_price_above)
         if current_position["is_long"]:
             if price < current_position["stop_loss"] or price > current_position["take_profit"]:
+                closing_position = True # avoid closing the position multiple times
                 close_position(price, moving_average)
-                time.sleep(10) # wait a bit after closing a position before opening a new one
+                time.sleep(3) # wait a bit after closing a position before opening a new one
                 current_position = None
+                closing_position = False
         else:
             if price > current_position["stop_loss"] or price < current_position["take_profit"]:
+                closing_position = True
                 close_position(price, moving_average)
-                time.sleep(10) # wait a bit after closing a position before opening a new one
+                time.sleep(3)
                 current_position = None
+                closing_position = False
 
     else:
         if price < lower_threshold:
@@ -138,6 +150,8 @@ def on_close(ws, close_status_code, close_msg):
     print("WebSocket closed")
 
 def start_trading():
+    print("Launching bot...")
+    print(f"User balance: {trading.getBalance()} MPH")
     url = "wss://stream.binance.com:9443/ws/btcusdt@trade"
     ws = websocket.WebSocketApp(
         url,
