@@ -1,3 +1,4 @@
+from abis import morpher_oracle_abi, morpher_state_abi, morpher_token_abi, morpher_trade_engine_abi
 from eth_account import Account
 import json
 import time
@@ -12,11 +13,6 @@ MORPHER_TRADE_ENGINE_ADDRESS='0xc4a877Ed48c2727278183E18fd558f4b0c26030A'
 MORPHER_STATE_ADDRESS='0xB4881186b9E52F8BD6EC5F19708450cE57b24370'
 ORDER_CREATED='c7392b9822094f2dca86d2a7a97945e80918a8aee61c04de90253f3683b56950'
 
-MORPHER_TOKEN_ABI='[{"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address","internalType":"address"}],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"}]'
-MORPHER_ORACLE_ABI='[{"type":"function","name":"createOrder","inputs":[{"name":"_marketId","type":"bytes32","internalType":"bytes32"},{"name":"_closeSharesAmount","type":"uint256","internalType":"uint256"},{"name":"_openMPHTokenAmount","type":"uint256","internalType":"uint256"},{"name":"_tradeDirection","type":"bool","internalType":"bool"},{"name":"_orderLeverage","type":"uint256","internalType":"uint256"},{"name":"_onlyIfPriceAbove","type":"uint256","internalType":"uint256"},{"name":"_onlyIfPriceBelow","type":"uint256","internalType":"uint256"},{"name":"_goodUntil","type":"uint256","internalType":"uint256"},{"name":"_goodFrom","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"_orderId","type":"bytes32","internalType":"bytes32"}],"stateMutability":"payable"},{"type":"function","name":"initiateCancelOrder","inputs":[{"name":"_orderId","type":"bytes32","internalType":"bytes32"}],"outputs":[],"stateMutability":"nonpayable"}]'
-MORPHER_TRADE_ENGINE_ABI='[{"type":"function","name":"getOrder","inputs":[{"name":"_orderId","type":"bytes32","internalType":"bytes32"}],"outputs":[{"name":"_userId","type":"address","internalType":"address"},{"name":"_marketId","type":"bytes32","internalType":"bytes32"},{"name":"_closeSharesAmount","type":"uint256","internalType":"uint256"},{"name":"_openMPHTokenAmount","type":"uint256","internalType":"uint256"},{"name":"_marketPrice","type":"uint256","internalType":"uint256"},{"name":"_marketSpread","type":"uint256","internalType":"uint256"},{"name":"_orderLeverage","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"getPosition","inputs":[{"name":"_address","type":"address","internalType":"address"},{"name":"_marketId","type":"bytes32","internalType":"bytes32"}],"outputs":[{"name":"longShares","type":"uint256","internalType":"uint256"},{"name":"shortShares","type":"uint256","internalType":"uint256"},{"name":"meanEntryPrice","type":"uint256","internalType":"uint256"},{"name":"meanEntrySpread","type":"uint256","internalType":"uint256"},{"name":"meanEntryLeverage","type":"uint256","internalType":"uint256"},{"name":"liquidationPrice","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"longShareValue","inputs":[{"name":"_positionAveragePrice","type":"uint256","internalType":"uint256"},{"name":"_positionAverageLeverage","type":"uint256","internalType":"uint256"},{"name":"_positionTimeStampInMs","type":"uint256","internalType":"uint256"},{"name":"_marketPrice","type":"uint256","internalType":"uint256"},{"name":"_marketSpread","type":"uint256","internalType":"uint256"},{"name":"_orderLeverage","type":"uint256","internalType":"uint256"},{"name":"_sell","type":"bool","internalType":"bool"}],"outputs":[{"name":"_shareValue","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"shortShareValue","inputs":[{"name":"_positionAveragePrice","type":"uint256","internalType":"uint256"},{"name":"_positionAverageLeverage","type":"uint256","internalType":"uint256"},{"name":"_positionTimeStampInMs","type":"uint256","internalType":"uint256"},{"name":"_marketPrice","type":"uint256","internalType":"uint256"},{"name":"_marketSpread","type":"uint256","internalType":"uint256"},{"name":"_orderLeverage","type":"uint256","internalType":"uint256"},{"name":"_sell","type":"bool","internalType":"bool"}],"outputs":[{"name":"_shareValue","type":"uint256","internalType":"uint256"}],"stateMutability":"view"}]'
-MORPHER_STATE_ABI='[{"type":"function","name":"getLastUpdated","inputs":[{"name":"_address","type":"address","internalType":"address"},{"name":"_marketHash","type":"bytes32","internalType":"bytes32"}],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"}]'
-
 
 class MorpherTrading:
 
@@ -24,10 +20,10 @@ class MorpherTrading:
         self.private_key = private_key
         self.address = Web3.to_checksum_address(Account.from_key(private_key).address)
         self.web3 = Web3(Web3.HTTPProvider(SIDECHAIN_RPC))
-        self.morpher_token = self.web3.eth.contract(address=MORPHER_TOKEN_ADDRESS, abi=json.loads(MORPHER_TOKEN_ABI))
-        self.morpher_oracle = self.web3.eth.contract(address=MORPHER_ORACLE_ADDRESS, abi=json.loads(MORPHER_ORACLE_ABI))
-        self.morpher_trade_engine = self.web3.eth.contract(address=MORPHER_TRADE_ENGINE_ADDRESS, abi=json.loads(MORPHER_TRADE_ENGINE_ABI))
-        self.morpher_state = self.web3.eth.contract(address=MORPHER_STATE_ADDRESS, abi=json.loads(MORPHER_STATE_ABI))
+        self.morpher_token = self.web3.eth.contract(address=MORPHER_TOKEN_ADDRESS, abi=morpher_token_abi)
+        self.morpher_oracle = self.web3.eth.contract(address=MORPHER_ORACLE_ADDRESS, abi=morpher_oracle_abi)
+        self.morpher_trade_engine = self.web3.eth.contract(address=MORPHER_TRADE_ENGINE_ADDRESS, abi=morpher_trade_engine_abi)
+        self.morpher_state = self.web3.eth.contract(address=MORPHER_STATE_ADDRESS, abi=morpher_state_abi)
 
 
     def openPosition(
