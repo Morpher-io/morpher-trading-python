@@ -27,6 +27,10 @@ This bot implements a basic scalping strategy using moving averages:
 pip install -r requirements.txt
 ```
 
+A Private Key.
+
+If you signed up with the Morpher Wallet, then Login to https://wallet.morpher.com, and export your Private Key.
+
 ## Configuration
 
 Edit `example.py` to set your parameters:
