@@ -57,7 +57,7 @@ PRIVATE_KEY=0x...
 Run the bot:
 
 ```bash
-python example.py
+python main.py
 ```
 
 The bot will:
@@ -84,5 +84,6 @@ This is experimental software. Use at your own risk. Always test with small amou
 ## Dependencies
 
 - web3==7.6.0
+- python-dotenv
 - websocket-client
 - numpy
