@@ -23,7 +23,10 @@ This bot implements a basic scalping strategy using moving averages:
 
 ## Requirements
 
+Create a local python env and install requirements:
 ```bash
+python3 -m venv env
+source ./env/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -33,7 +36,7 @@ If you signed up with the Morpher Wallet, then Login to https://wallet.morpher.c
 
 ## Configuration
 
-Edit `example.py` to set your parameters:
+Edit `main.py` to set your parameters:
 
 ```python
 MARKET_ID = "0x0bc89e95f9fdaab7e8a11719155f2fd638cb0f665623f3d12aab71d1a125daf9"  # BTC market
@@ -43,7 +46,11 @@ MOVING_AVERAGE_PERIOD = 5  # 5 minutes
 THRESHOLD_PERCENTAGE = 0.1  # Open position if price is over/under 0.1% of moving average
 ```
 
-Replace `"your_private_key"` with your actual Morpher private key.
+Create a .env file with your private key inside:
+
+```bash
+PRIVATE_KEY=0x...
+```
 
 ## Usage
 

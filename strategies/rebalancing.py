@@ -1,10 +1,10 @@
 import requests
+from eth_hash.auto import keccak
 from datetime import datetime, timedelta
 import time
 from trading import MorpherTrading
 
 
-# TODO calculate hash for each market when interacting with trading engine
 class WeightedMarketRebalancingStrategy:
 
     def __init__(
@@ -40,28 +40,47 @@ class WeightedMarketRebalancingStrategy:
 
     def _rebalance_positions(self, balance, prices):
         """Rebalance positions according to the target weights."""
-        target_allocation = self._calculate_target_allocation(balance)
+        total_balance = balance
+        current_positions = {}
+        for market in self.weighted_markets.keys():
+            current_position = self.trading.getPositionValue(self._get_market_id(market), prices[market])
+            current_positions[market] = current_position
+            total_balance += current_position
+        print(f"Total balance: {total_balance:.2f} MPH.")
+        print(f"Current invested: {(total_balance - balance):.2f} MPH, current cash: {balance:.2f}.")
+        print(f"New invested: {(total_balance * self.rebalance_percentage):.2f} MPH, new cash: {(total_balance * (1 - self.rebalance_percentage)):.2f}.")
+
+        target_allocation = self._calculate_target_allocation(total_balance)
 
         for market, target_amount in target_allocation.items():
-            current_position = self.trading.getPositionValue(market, prices[market])
+            current_position = current_positions[market]
             difference = target_amount - current_position
 
             if difference > 0: # Need to increase position
                 self.trading.openPosition(
-                    market_id=market,
+                    market_id=self._get_market_id(market),
                     mph_token_amount=difference,
                     direction=True, # Long positions for allocation
                     leverage=1,
                 )
                 print(f"[{datetime.now()}] Increased position in {market} by {difference:.2f} MPH.")
+                time.sleep(5)
             elif difference < 0: # Need to decrease position
                 self.trading.closePosition(
-                    market_id=market,
+                    market_id=self._get_market_id(market),
                     percentage=abs(difference) / current_position,
                 )
                 print(f"[{datetime.now()}] Decreased position in {market} by {abs(difference):.2f} MPH.")
+                time.sleep(5)
 
         print(f"[{datetime.now()}] Rebalancing complete. Target allocation: {target_allocation}")
+
+    @staticmethod
+    def _get_market_id(market):
+        """Get the morpher market id from the ticker"""
+        string = "CRYPTO_" + market
+        input_bytes = string.encode('utf-8')
+        return '0x' + keccak(input_bytes).hex()
 
     def start_trading(self):
         print("Launching weighted market rebalancing bot...")
