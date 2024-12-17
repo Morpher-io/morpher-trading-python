@@ -88,7 +88,7 @@ class WeightedMarketRebalancingStrategy:
         while True:
             now = datetime.now()
 
-            if self.last_rebalance_time is None or now >= self.last_rebalance_time + timedelta(days=1):
+            if self.last_rebalance_time is None or now > self.last_rebalance_time + timedelta(days=1):
                 print(f"[{now}] Rebalancing positions...")
                 balance = self.trading.getBalance()
                 print(f"[{now}] Current balance: {balance:.2f} MPH")
@@ -103,6 +103,6 @@ class WeightedMarketRebalancingStrategy:
                         raise Exception("Cannot rebalance without price!")
 
                 self._rebalance_positions(balance, prices)
-                self.last_rebalance_time = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                self.last_rebalance_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
             time.sleep(300)
